@@ -5,6 +5,7 @@ use std::time::{Duration, SystemTime};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
+/// measure latency between 2 machines, expect ntp synced machine
 struct Args {
     #[clap(subcommand)]
     subcommand: Subcommand,
@@ -107,11 +108,15 @@ fn main() -> anyhow::Result<()> {
                 if amt < 24 {
                     panic!("arg {}", amt)
                 }
+                let now3 = SystemTime::now();
                 let df = now2.duration_since(SystemTime::UNIX_EPOCH)?;
                 let (d1, _d2) = unser2(buf);
                 let x = d1 - d;
                 let x2 = d1 - df;
-                println!("{:?} {:?}", x, x2);
+                let full = now3.duration_since(now).unwrap();
+                let nanos = full.as_nanos();
+                let z = Duration::from_nanos((nanos / 2) as u64);
+                println!("{:?} {:?} {:?}", x, x2, z);
             }
             Ok(())
         }
@@ -128,6 +133,7 @@ fn main() -> anyhow::Result<()> {
                     panic!("arg {}", amt)
                 }
                 let d = unser(buf);
+
                 let t = SystemTime::now();
                 let d = t.duration_since(SystemTime::UNIX_EPOCH)?;
                 let x = ser2(d, d);
