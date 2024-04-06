@@ -91,9 +91,10 @@ fn main() -> anyhow::Result<()> {
                 let d = now.duration_since(SystemTime::UNIX_EPOCH)?;
                 let buf = ser(d);
                 stream.write_all(&buf)?;
+
+                let now2 = SystemTime::now();
                 let mut buf = [0u8; 24];
                 stream.read_exact(&mut buf)?;
-                let now2 = SystemTime::now();
                 let df = now2.duration_since(SystemTime::UNIX_EPOCH)?;
                 let (d1, _d2) = unser2(buf);
                 let x = d1 - d;
