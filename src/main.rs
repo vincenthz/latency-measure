@@ -98,7 +98,7 @@ fn main() -> anyhow::Result<()> {
                 let df = now2.duration_since(SystemTime::UNIX_EPOCH)?;
                 let (d1, _d2) = unser2(buf);
                 let x = d1 - d;
-                let x2 = df - d1;
+                let x2 = d1 - df;
                 println!("{:?} {:?}", x, x2);
             }
             Ok(())
