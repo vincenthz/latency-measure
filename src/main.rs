@@ -1,6 +1,6 @@
 use clap::Parser;
 use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream, UdpSocket};
+use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs, UdpSocket};
 use std::time::{Duration, SystemTime};
 
 #[derive(Parser, Debug)]
@@ -21,6 +21,8 @@ enum Subcommand {
 pub struct ClientArgs {
     #[clap(long, short)]
     pub port: u16,
+    #[clap(long, short)]
+    pub client_port: u16,
     #[clap(long, short)]
     pub destination: String,
     #[clap(long, default_value_t = false)]
@@ -84,17 +86,27 @@ fn main() -> anyhow::Result<()> {
     match args.subcommand {
         Subcommand::Client(args) => {
             let addr = format!("{}:{}", args.destination, args.port);
-            let mut stream = TcpStream::connect(addr)?;
+
+            let addr_client = format!("0.0.0.0:{}", args.client_port);
+            //let mut stream = TcpStream::connect(addr)?;
+            let mut stream = UdpSocket::bind(addr_client)?;
+            let mut addr = addr.to_socket_addrs().unwrap();
+            let addr = addr.next().unwrap();
 
             for _ in 0..args.tries {
                 let now = SystemTime::now();
                 let d = now.duration_since(SystemTime::UNIX_EPOCH)?;
                 let buf = ser(d);
-                stream.write_all(&buf)?;
+                //stream.write_all(&buf)?;
+                stream.send_to(&buf, addr)?;
 
                 let now2 = SystemTime::now();
                 let mut buf = [0u8; 24];
-                stream.read_exact(&mut buf)?;
+                //stream.read_exact(&mut buf)?;
+                let (amt, _) = stream.recv_from(&mut buf)?;
+                if amt < 24 {
+                    panic!("arg {}", amt)
+                }
                 let df = now2.duration_since(SystemTime::UNIX_EPOCH)?;
                 let (d1, _d2) = unser2(buf);
                 let x = d1 - d;
@@ -104,17 +116,23 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Subcommand::Server(args) => {
-            let listener = TcpListener::bind(format!("0.0.0.0:{}", args.port))?;
-
-            let (mut connection, client_addr) = listener.accept()?;
+            let addr = format!("0.0.0.0:{}", args.port);
+            //let listener = TcpListener::bind(format!("0.0.0.0:{}", args.port))?;
+            //let (mut connection, client_addr) = listener.accept()?;
+            let mut connection = UdpSocket::bind(addr)?;
             for _ in 0..args.tries {
                 let mut buf = [0u8; 12];
-                connection.read_exact(&mut buf)?;
+                //connection.read_exact(&mut buf)?;
+                let (amt, src) = connection.recv_from(&mut buf)?;
+                if amt < 12 {
+                    panic!("arg {}", amt)
+                }
                 let d = unser(buf);
                 let t = SystemTime::now();
                 let d = t.duration_since(SystemTime::UNIX_EPOCH)?;
                 let x = ser2(d, d);
-                connection.write_all(&x)?;
+                //connection.write_all(&x)?;
+                connection.send_to(&x, src)?;
             }
 
             Ok(())
